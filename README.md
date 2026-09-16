@@ -10,6 +10,8 @@ Use Python 3.10 or newer, then install the dependencies from the project folder:
 python -m pip install -r requirements.txt
 ```
 
+Streamlit Community Cloud uses the Python version declared in `runtime.txt` to ensure that all dependency wheels are available.
+
 ## Train the model
 
 Run the training script:
