@@ -1,0 +1,7 @@
+torch>=2.2.0
+torchvision>=0.17.0
+streamlit==1.39.0
+streamlit-drawable-canvas==0.9.3
+numpy>=1.26.0
+pillow>=10.0.0
+plotly>=5.20.0
