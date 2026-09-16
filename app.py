@@ -194,53 +194,59 @@ def main() -> None:
         with clear_column:
             clear_clicked = st.button("↻  Clear", width="stretch")
 
-    with result_column:
-        st.markdown('<div class="panel-title"><span>▥</span> Prediction result</div>', unsafe_allow_html=True)
-
     if clear_clicked:
         st.session_state.canvas_key += 1
         st.session_state.pop("last_image", None)
         st.session_state.pop("last_prediction", None)
+        st.session_state.pop("last_probabilities", None)
         st.rerun()
 
-    if predict_clicked:
-        if canvas_result.image_data is None or not np.any(
-            canvas_result.image_data[:, :, :3] < 245
-        ):
-            st.warning("Draw a digit on the canvas first.")
+    with result_column:
+        st.markdown('<div class="panel-title"><span>▥</span> Prediction result</div>', unsafe_allow_html=True)
+        if predict_clicked:
+            if canvas_result.image_data is None or not np.any(
+                canvas_result.image_data[:, :, :3] < 245
+            ):
+                st.warning("Draw a digit on the canvas first.")
+            else:
+                image_tensor = preprocess_canvas(canvas_result.image_data).to(DEVICE)
+                with torch.no_grad():
+                    probabilities = torch.softmax(model(image_tensor), dim=1)[0].numpy()
+                predicted_digit = int(np.argmax(probabilities))
+                st.session_state.last_image = image_tensor.detach()
+                st.session_state.last_prediction = predicted_digit
+                st.session_state.last_probabilities = probabilities
+
+        if "last_prediction" in st.session_state:
+            probabilities = st.session_state.get("last_probabilities")
+            if probabilities is not None:
+                predicted_digit = st.session_state.last_prediction
+                confidence_figure = px.bar(
+                    x=list(range(10)),
+                    y=probabilities,
+                    labels={"x": "Digit", "y": "Confidence"},
+                    range_y=[0, 1],
+                )
+                confidence_figure.update_layout(
+                    xaxis=dict(dtick=1, title="Digit"),
+                    yaxis=dict(title="Confidence"),
+                    paper_bgcolor="rgba(0,0,0,0)",
+                    plot_bgcolor="rgba(0,0,0,0)",
+                    font=dict(color="#c9d7eb", family="DM Sans"),
+                    margin=dict(l=5, r=5, t=5, b=5),
+                    height=270,
+                )
+                st.markdown(
+                    f'<div class="prediction-badge">✓ Predicted digit: {predicted_digit}</div>',
+                    unsafe_allow_html=True,
+                )
+                st.plotly_chart(confidence_figure, width="stretch")
+                st.markdown(
+                    f'<div class="confidence-note">Model confidence: <strong>{predicted_digit} ({probabilities[predicted_digit]:.1%})</strong>.</div>',
+                    unsafe_allow_html=True,
+                )
         else:
-            image_tensor = preprocess_canvas(canvas_result.image_data).to(DEVICE)
-            with torch.no_grad():
-                probabilities = torch.softmax(model(image_tensor), dim=1)[0].numpy()
-            predicted_digit = int(np.argmax(probabilities))
-            st.session_state.last_image = image_tensor.detach()
-            st.session_state.last_prediction = predicted_digit
-            confidence_figure = px.bar(
-                x=list(range(10)),
-                y=probabilities,
-                labels={"x": "Digit", "y": "Confidence"},
-                range_y=[0, 1],
-            )
-            confidence_figure.update_layout(
-                xaxis=dict(dtick=1, title="Digit"),
-                yaxis=dict(title="Confidence"),
-                paper_bgcolor="rgba(0,0,0,0)",
-                plot_bgcolor="rgba(0,0,0,0)",
-                font=dict(color="#c9d7eb", family="DM Sans"),
-                margin=dict(l=10, r=10, t=15, b=10),
-                height=340,
-            )
-            st.markdown(
-                f'<div class="prediction-badge">✓ Predicted digit: {predicted_digit}</div>',
-                unsafe_allow_html=True,
-            )
-            st.plotly_chart(confidence_figure, width="stretch")
-            st.markdown(
-                f'<div class="confidence-note">Model confidence: most confident that this is a <strong>{predicted_digit} ({probabilities[predicted_digit]:.1%})</strong>.</div>',
-                unsafe_allow_html=True,
-            )
-    if "last_prediction" not in st.session_state:
-        st.markdown('<div class="result-empty">Your prediction and confidence scores will appear here.</div>', unsafe_allow_html=True)
+            st.markdown('<div class="result-empty">Your prediction and confidence scores will appear here.</div>', unsafe_allow_html=True)
 
     if "last_image" in st.session_state:
         st.markdown(
