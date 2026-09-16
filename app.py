@@ -186,6 +186,7 @@ def main() -> None:
             height=300,
             width=300,
             drawing_mode="freedraw",
+            display_toolbar=False,
             key=f"digit_canvas_{st.session_state.canvas_key}",
         )
         predict_column, clear_column = st.columns(2)
