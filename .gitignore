@@ -1,0 +1,12 @@
+# Local Python environment
+.venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Downloaded MNIST data
+/data/
+
+# Local Streamlit metadata
+.streamlit/secrets.toml
