@@ -10,7 +10,7 @@ Use Python 3.10 or newer, then install the dependencies from the project folder:
 python -m pip install -r requirements.txt
 ```
 
-Streamlit Community Cloud uses the Python version declared in `runtime.txt` to ensure that all dependency wheels are available.
+The dependency versions are pinned for compatibility with Streamlit Community Cloud's current Python runtime, including a prebuilt Pillow wheel for Python 3.14.
 
 ## Train the model
 
