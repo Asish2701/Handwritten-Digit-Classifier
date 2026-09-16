@@ -16,6 +16,7 @@ PROJECT_DIR = Path(__file__).resolve().parent
 MODEL_PATH = PROJECT_DIR / "model.pth"
 DEVICE = torch.device("cpu")
 ONLINE_LEARNING_RATE = 1e-5
+ONLINE_UPDATE_STEPS = 3
 
 
 class DigitCNN(nn.Module):
@@ -59,16 +60,23 @@ def load_online_optimizer(_model: DigitCNN) -> optim.Optimizer:
 
 def learn_from_feedback(
     model: DigitCNN, optimizer: optim.Optimizer, image: torch.Tensor, label: int
-) -> float:
-    """Take one feedback-guided update and return the loss used for learning."""
+) -> tuple[float, float]:
+    """Take several small feedback-guided updates and return before/after loss."""
     model.train()
-    optimizer.zero_grad()
-    logits = model(image)
-    loss = nn.CrossEntropyLoss()(logits, torch.tensor([label], device=DEVICE))
-    loss.backward()
-    optimizer.step()
+    target = torch.tensor([label], device=DEVICE)
+    loss_function = nn.CrossEntropyLoss()
+    with torch.no_grad():
+        before_loss = loss_function(model(image), target).item()
+    for _ in range(ONLINE_UPDATE_STEPS):
+        optimizer.zero_grad()
+        loss = loss_function(model(image), target)
+        loss.backward()
+        optimizer.step()
     model.eval()
-    return loss.item()
+    with torch.no_grad():
+        after_loss = loss_function(model(image), target).item()
+    torch.save(model.state_dict(), MODEL_PATH)
+    return before_loss, after_loss
 
 
 def preprocess_canvas(canvas_data: np.ndarray) -> torch.Tensor:
@@ -265,8 +273,21 @@ def main() -> None:
             st.write("")
             learn_clicked = st.button("▣  Learn from this example", width="stretch")
         if learn_clicked:
-            feedback_loss = learn_from_feedback(model, optimizer, st.session_state.last_image, feedback_label)
-            st.success(f"Updated from your feedback: digit {feedback_label} (loss {feedback_loss:.4f}).")
+            before_loss, after_loss = learn_from_feedback(
+                model, optimizer, st.session_state.last_image, feedback_label
+            )
+            with torch.no_grad():
+                updated_probabilities = torch.softmax(
+                    model(st.session_state.last_image), dim=1
+                )[0].numpy()
+            st.session_state.last_prediction = int(np.argmax(updated_probabilities))
+            st.session_state.last_probabilities = updated_probabilities
+            st.session_state.feedback_count = st.session_state.get("feedback_count", 0) + 1
+            st.success(
+                f"Learned from digit {feedback_label}: loss "
+                f"{before_loss:.4f} -> {after_loss:.4f}. "
+                f"Examples learned: {st.session_state.feedback_count}."
+            )
 
 
 if __name__ == "__main__":
